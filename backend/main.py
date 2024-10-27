@@ -5,8 +5,11 @@ from models import Pair, MongoPair, SmsStats, User
 import bcrypt
 import jwt
 import datetime
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
-SECRET_KEY = 'your_secret_key_here'  
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 def token_required(f):
     def decorator(*args, **kwargs):
