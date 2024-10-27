@@ -1,4 +1,3 @@
-
 from config import db_SQL, db_mongo
 
 # MySQL Model 1
@@ -48,8 +47,7 @@ class SmsStats(db_SQL.Model):
             "pairId": self.pair_id,
         }
 
-
-# MongoDB Model
+# MongoDB Model 1
 class MongoPair:
     collection = db_mongo["pairs"]  # MongoDB collection name
 
@@ -69,6 +67,28 @@ class MongoPair:
             "active_status": active_status,
             "priority": priority,
             "session_details": session_details
+        }
+        result = cls.collection.insert_one(data)
+        return result.inserted_id
+
+# MongoDB Model 2 for User
+class User:
+    collection = db_mongo["users"]  # MongoDB collection name for user data
+
+    @staticmethod
+    def to_json(document):
+        return {
+            "username": document.get("username"),
+            "password": document.get("password"),
+            "email": document.get("email"),
+        }
+
+    @classmethod
+    def insert_one(cls, username, password, email):
+        data = {
+            "username": username,
+            "password": password,
+            "email": email
         }
         result = cls.collection.insert_one(data)
         return result.inserted_id
