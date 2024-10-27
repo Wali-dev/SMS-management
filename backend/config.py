@@ -18,9 +18,9 @@ CORS(app)
 try:
     app.config["SQLALCHEMY_DATABASE_URI"] = SQL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    dbSQL = SQLAlchemy(app)
+    db_SQL = SQLAlchemy(app)
     with app.app_context():
-        dbSQL.engine.connect()
+        db_SQL.engine.connect()
     print("MySQL connected")
 except Exception as e:
     print(f"MySQL connection error: {e}")
@@ -28,7 +28,7 @@ except Exception as e:
 # MongoDB Database Configuration
 try:
     mongo_client = MongoClient(MONGODB)
-    mongo_db = mongo_client.get_database()  # Access the MongoDB database instance
+    db_mongo = mongo_client.get_database()  # Access the MongoDB database instance
     print("MongoDB connected")
 except Exception as e:
     print(f"MongoDB connection error: {e}")
