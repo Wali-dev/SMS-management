@@ -1,4 +1,5 @@
 from config import db_SQL, db_mongo
+from pymongo.errors import DuplicateKeyError
 
 # MySQL Model 1
 class Pair(db_SQL.Model):
@@ -75,6 +76,10 @@ class MongoPair:
 class User:
     collection = db_mongo["users"]  # MongoDB collection name for user data
 
+    # Ensure unique index on username and email at the MongoDB level
+    collection.create_index("username", unique=True)
+    collection.create_index("email", unique=True)
+
     @staticmethod
     def to_json(document):
         return {
@@ -85,10 +90,20 @@ class User:
 
     @classmethod
     def insert_one(cls, username, password, email):
+        # Check if username or email already exists
+        if cls.collection.find_one({"username": username}):
+            raise ValueError("Username already exists")
+        if cls.collection.find_one({"email": email}):
+            raise ValueError("Email already exists")
+
         data = {
             "username": username,
             "password": password,
             "email": email
         }
-        result = cls.collection.insert_one(data)
-        return result.inserted_id
+        
+        try:
+            result = cls.collection.insert_one(data)
+            return result.inserted_id
+        except DuplicateKeyError:
+            raise ValueError("Duplicate key error: Username or email must be unique")
