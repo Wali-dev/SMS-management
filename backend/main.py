@@ -163,11 +163,13 @@ def create_program(current_user):
         
         return jsonify({
             "message": "Pair created successfully",
+            "pair_id": str(pair_id),
             "pair": MongoPair.to_json(created_pair)
         }), 201
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/program/update/<pair_id>", methods=["PATCH"])
 @token_required
@@ -178,7 +180,10 @@ def update_pair(current_user, pair_id):
         if not pair:
             return jsonify({"error": "Pair not found"}), 404
 
-        # Get the data to be updated
+        # Get the JSON data and ensure Content-Type is application/json
+        if not request.is_json:
+            return jsonify({"error": "Invalid content type, must be application/json"}), 415
+            
         data = request.get_json()
         
         # Fields that can be updated
@@ -199,9 +204,51 @@ def update_pair(current_user, pair_id):
             "message": "Pair updated successfully",
             "pair": MongoPair.to_json(updated_pair)
         }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/program/delete/<pair_id>", methods=["DELETE"]) 
+@token_required
+def delete_pair(current_user, pair_id):
+    try:
+        # Check if the pair exists
+        pair = MongoPair.collection.find_one({"_id": ObjectId(pair_id)})
+        if not pair:
+            return jsonify({"error": "Pair not found"}), 404
+            
+        pair_name = pair.get("pair_name")
+        
+        # If pair is running, stop it first using existing service
+        if pair_name in SMSService.running_pairs:
+            stop_result = SMSService.stop_pair(pair_name)
+            if not stop_result["success"]:
+                return jsonify({"error": stop_result["message"]}), 400
+        
+        # Delete SMS stats from SQL database
+        try:
+            stats = SmsStats.query.filter_by(pair_name=pair_name).first()
+            if stats:
+                db_SQL.session.delete(stats)
+                db_SQL.session.commit()
+        except Exception as e:
+            db_SQL.session.rollback()
+            return jsonify({"error": f"Failed to delete SMS stats: {str(e)}"}), 500
+            
+       # Delete the pair from MongoDB
+        delete_result = MongoPair.collection.delete_one({"_id": ObjectId(pair_id)})
+        
+        if delete_result.deleted_count == 0:
+            return jsonify({"error": "Failed to delete pair"}), 500
+            
+        return jsonify({
+            "message": f"Pair {pair_name} deleted successfully",
+            "pair_id": pair_id
+        }), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route("/program/<operation>", methods=["POST"], endpoint='program_operation')  # Add unique endpoint
