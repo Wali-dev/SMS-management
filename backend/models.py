@@ -1,51 +1,28 @@
 from config import db_SQL, db_mongo
 from pymongo.errors import DuplicateKeyError
-
-# MySQL Model 1
-class Pair(db_SQL.Model):
-    __tablename__ = "pair"  # Optional table name
-
-    id = db_SQL.Column(db_SQL.Integer, primary_key=True)
-    pair_name = db_SQL.Column(db_SQL.String(80), unique=False, nullable=False)
-    total_sms_sent = db_SQL.Column(db_SQL.Integer, nullable=False)
-    success_rate = db_SQL.Column(db_SQL.Integer, nullable=False)
-    failure = db_SQL.Column(db_SQL.Integer, nullable=False)
-
-    # Relationship to SmsStats
-    sms_stats = db_SQL.relationship("SmsStats", back_populates="pair", uselist=False)  # One-to-One relationship
-
-    def to_json(self):
-        return {
-            "id": self.id,
-            "pairName": self.pair_name,
-            "totalSmsSent": self.total_sms_sent,
-            "successRate": self.success_rate,
-            "failure": self.failure,
-            "smsStats": self.sms_stats.to_json() if self.sms_stats else None,
-        }
+from datetime import datetime
+from bson import Binary
+import io
 
 # MySQL Model 2
 class SmsStats(db_SQL.Model):
     __tablename__ = "sms_stats"  # Optional table name
 
     id = db_SQL.Column(db_SQL.Integer, primary_key=True)
+    pair_name = db_SQL.Column(db_SQL.String(80), unique=False, nullable=False)
     total_sms_sent = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_sms_failed = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_rate_of_success = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_rate_of_failure = db_SQL.Column(db_SQL.Integer, nullable=False)
-    pair_id = db_SQL.Column(db_SQL.Integer, db_SQL.ForeignKey('pair.id'))  # Foreign key to Pair
-
-    # Relationship back to Pair
-    pair = db_SQL.relationship("Pair", back_populates="sms_stats")
 
     def to_json(self):
         return {
             "id": self.id,
+            "pairName": self.pair_name,
             "totalSmsSent": self.total_sms_sent,
             "totalSmsFailed": self.total_sms_failed,
             "totalRateOfSuccess": self.total_rate_of_success,
             "totalRateOfFailure": self.total_rate_of_failure,
-            "pairId": self.pair_id,
         }
 
 # MongoDB Model 1
@@ -54,29 +31,58 @@ class MongoPair:
 
     @staticmethod
     def to_json(document):
+        file_info = document.get("number_list_file", {})
         return {
             "pairName": document.get("pair_name"),
             "activeStatus": document.get("active_status"),
             "priority": document.get("priority"),
+            "proxy": document.get("proxy"),
             "sessionDetails": document.get("session_details"),
+            "createdAt": document.get("created_at"),
+            "numberListFile": {
+                "filename": file_info.get("filename"),
+                "upload_date": file_info.get("upload_date"),
+                "content_type": file_info.get("content_type")
+            } if file_info else None
         }
 
     @classmethod
-    def insert_one(cls, pair_name, active_status, priority, session_details):
+    def insert_one(cls, pair_name, active_status, priority, session_details, proxy, number_list_file=None):
         data = {
             "pair_name": pair_name,
             "active_status": active_status,
+            "proxy": proxy,
             "priority": priority,
-            "session_details": session_details
+            "session_details": session_details,
+            "created_at": datetime.utcnow()
         }
+        
+        if number_list_file:
+            data["number_list_file"] = {
+                "filename": number_list_file.get("filename"),
+                "content": Binary(number_list_file.get("content")),
+                "content_type": number_list_file.get("content_type"),
+                "upload_date": datetime.utcnow()
+            }
+        
         result = cls.collection.insert_one(data)
         return result.inserted_id
 
+    @classmethod
+    def get_file_content(cls, pair_name):
+        pair = cls.collection.find_one({"pair_name": pair_name})
+        if pair and "number_list_file" in pair:
+            return {
+                "content": pair["number_list_file"]["content"],
+                "filename": pair["number_list_file"]["filename"],
+                "content_type": pair["number_list_file"]["content_type"]
+            }
+        return None
+
 # MongoDB Model 2 for User
 class User:
-    collection = db_mongo["users"]  # MongoDB collection name for user data
+    collection = db_mongo["users"] 
 
-    # Ensure unique index on username and email at the MongoDB level
     collection.create_index("username", unique=True)
     collection.create_index("email", unique=True)
 
@@ -101,7 +107,6 @@ class User:
             "password": password,
             "email": email
         }
-        
         try:
             result = cls.collection.insert_one(data)
             return result.inserted_id

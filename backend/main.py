@@ -1,7 +1,10 @@
+from functools import wraps
 from bson import ObjectId
 from flask import request, jsonify
 from config import app, db_mongo, db_SQL
-from models import Pair, MongoPair, SmsStats, User
+from models import  MongoPair, SmsStats, User
+from service import SMSService
+from werkzeug.utils import secure_filename
 import bcrypt
 import jwt
 import datetime
@@ -12,6 +15,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 def token_required(f):
+    @wraps(f)  # Add this decorator to preserve function metadata
     def decorator(*args, **kwargs):
         token = None
         if 'Authorization' in request.headers:
@@ -87,6 +91,177 @@ def sign_in():
             return jsonify({"error": "Invalid credentials"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+#PROGRAM ROUTE
+ALLOWED_EXTENSIONS = {'txt', 'csv'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route("/program/create", methods=["POST"])
+@token_required
+def create_program(current_user):
+    try:
+        # Check if the post request has the file part
+        if 'number_list' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+            
+        file = request.files['number_list']
+        
+        # If user does not select file, browser also
+        # submit an empty part without filename
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({"error": "File type not allowed. Use .txt or .csv"}), 400
+
+        # Get form data
+        pair_name = request.form.get("pair_name")
+        proxy = request.form.get("proxy")
+        
+        # Extract optional fields with defaults
+        active_status = request.form.get("active_status", "false").lower() == "true"
+        priority = int(request.form.get("priority", "0"))
+        session_details = {}  # Initialize empty session details
+        
+        # Validate required fields
+        if not all([pair_name, proxy]):
+            return jsonify({
+                "error": "Missing required fields: pair_name and proxy are required"
+            }), 400
+            
+        # Check if pair already exists
+        existing_pair = MongoPair.collection.find_one({"pair_name": pair_name})
+        if existing_pair:
+            return jsonify({"error": "Pair with this name already exists"}), 409
+
+        # Secure the filename and read file content
+        filename = secure_filename(file.filename)
+        file_content = file.read()
+        
+        # Prepare file data for MongoDB
+        file_data = {
+            "filename": filename,
+            "content": file_content,
+            "content_type": file.content_type or "text/plain"
+        }
+        
+        # Create new pair with file
+        pair_id = MongoPair.insert_one(
+            pair_name=pair_name,
+            active_status=active_status,
+            priority=priority,
+            session_details=session_details,
+            proxy=proxy,
+            number_list_file=file_data
+        )
+        
+        # Get the created pair
+        created_pair = MongoPair.collection.find_one({"_id": pair_id})
+        
+        return jsonify({
+            "message": "Pair created successfully",
+            "pair": MongoPair.to_json(created_pair)
+        }), 201
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/program/update/<pair_id>", methods=["PATCH"])
+@token_required
+def update_pair(current_user, pair_id):
+    try:
+        # Check if the pair exists
+        pair = MongoPair.collection.find_one({"_id": ObjectId(pair_id)})
+        if not pair:
+            return jsonify({"error": "Pair not found"}), 404
+
+        # Get the data to be updated
+        data = request.get_json()
+        
+        # Fields that can be updated
+        updatable_fields = ["pair_name", "active_status", "priority", "proxy"]
+        update_data = {field: data[field] for field in updatable_fields if field in data}
+        
+        # Convert active_status to boolean if it's in the update data
+        if "active_status" in update_data:
+            update_data["active_status"] = str(update_data["active_status"]).lower() == "true"
+        
+        # Update the pair document in MongoDB
+        MongoPair.collection.update_one({"_id": ObjectId(pair_id)}, {"$set": update_data})
+        
+        # Retrieve the updated pair
+        updated_pair = MongoPair.collection.find_one({"_id": ObjectId(pair_id)})
+        
+        return jsonify({
+            "message": "Pair updated successfully",
+            "pair": MongoPair.to_json(updated_pair)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/program/<operation>", methods=["POST"], endpoint='program_operation')  # Add unique endpoint
+@token_required
+def program_operation(current_user, operation):
+    try:
+        data = request.get_json()
+        pair_name = data.get("pair_name")
+        
+        if not pair_name:
+            return jsonify({"error": "Missing pair name"}), 400
+        
+        # Check if pair exists
+        pair = MongoPair.collection.find_one({"pair_name": pair_name})
+        if not pair:
+            return jsonify({"error": "Pair not found"}), 404
+            
+        if operation == "start":
+            result = SMSService.start_pair(pair_name)
+        elif operation == "stop":
+            result = SMSService.stop_pair(pair_name)
+        elif operation == "restart":
+            result = SMSService.restart_pair(pair_name)
+        else:
+            return jsonify({"error": "Invalid operation"}), 400
+        
+        return jsonify(result), 200 if result["success"] else 400
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route("/", methods=["GET"])
 def get_home():
