@@ -5,8 +5,9 @@ from bson import Binary
 import io
 
 # MySQL Model 2
+
 class SmsStats(db_SQL.Model):
-    __tablename__ = "sms_stats"  # Optional table name
+    __tablename__ = "sms_stats"
 
     id = db_SQL.Column(db_SQL.Integer, primary_key=True)
     pair_name = db_SQL.Column(db_SQL.String(80), unique=False, nullable=False)
@@ -14,6 +15,8 @@ class SmsStats(db_SQL.Model):
     total_sms_failed = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_rate_of_success = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_rate_of_failure = db_SQL.Column(db_SQL.Integer, nullable=False)
+    created_at = db_SQL.Column(db_SQL.DateTime, default=datetime.utcnow)
+    updated_at = db_SQL.Column(db_SQL.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_json(self):
         return {
@@ -23,6 +26,8 @@ class SmsStats(db_SQL.Model):
             "totalSmsFailed": self.total_sms_failed,
             "totalRateOfSuccess": self.total_rate_of_success,
             "totalRateOfFailure": self.total_rate_of_failure,
+            # "createdAt": self.created_at.isoformat() if self.created_at else None,
+            # "updatedAt": self.updated_at.isoformat() if self.updated_at else None
         }
 
 # MongoDB Model 1

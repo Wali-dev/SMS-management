@@ -7,10 +7,12 @@ from service import SMSService
 from werkzeug.utils import secure_filename
 import bcrypt
 import jwt
-import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
 load_dotenv()
+
+import random
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
@@ -32,6 +34,8 @@ def token_required(f):
         
         return f(current_user, *args, **kwargs)
     return decorator
+
+#USER ROUTE
 
 @app.route("/user/<user_id>", methods=["GET"])
 @token_required
@@ -281,10 +285,115 @@ def program_operation(current_user, operation):
         return jsonify({"error": str(e)}), 500
 
 
+#STATS ROUTE
+
+@app.route("/stats/<pair_name>", methods=["GET"])
+@token_required
+def get_sms_stats(current_user, pair_name):
+    try:
+        # First check if the pair exists in MongoDB
+        pair = MongoPair.collection.find_one({"pair_name": pair_name})
+        if not pair:
+            return jsonify({"error": "Pair not found"}), 404
+
+        # Get SMS stats from SQL database
+        stats = SmsStats.query.filter_by(pair_name=pair_name).first()
+        if not stats:
+            return jsonify({"message": "No stats found for this pair", "stats": None}), 404
+
+        # Convert stats to dictionary
+        stats_dict = {
+            "pair_name": stats.pair_name,
+            "total_messages": stats.total_messages,
+            "successful_messages": stats.successful_messages,
+            "failed_messages": stats.failed_messages,
+            "success_rate": stats.successful_messages / stats.total_messages * 100 if stats.total_messages > 0 else 0,
+            "created_at": stats.created_at.isoformat() if stats.created_at else None,
+            "updated_at": stats.updated_at.isoformat() if stats.updated_at else None
+        }
+
+        return jsonify({
+            "message": "Stats retrieved successfully",
+            "stats": stats_dict
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+#dummmy data from here
 
 
 
-
+@app.route("/stats/dummy", methods=["POST"])
+@token_required
+def create_dummy_stats(current_user):
+    try:
+        # Get data from request
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = [
+            "pair_name",
+            "total_sms_sent",
+            "total_sms_failed"
+        ]
+        
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+                
+        # Check if pair exists in MongoDB
+        pair = MongoPair.collection.find_one({"pair_name": data["pair_name"]})
+        if not pair:
+            return jsonify({"error": "Pair not found in database"}), 404
+            
+        # Calculate rates
+        total_sent = data["total_sms_sent"]
+        total_failed = data["total_sms_failed"]
+        
+        if total_sent < total_failed:
+            return jsonify({"error": "total_sms_failed cannot be greater than total_sms_sent"}), 400
+            
+        # Calculate success and failure rates
+        success_rate = ((total_sent - total_failed) / total_sent * 100) if total_sent > 0 else 0
+        failure_rate = (total_failed / total_sent * 100) if total_sent > 0 else 0
+        
+        # Create new stats record
+        new_stats = SmsStats(
+            pair_name=data["pair_name"],
+            total_sms_sent=total_sent,
+            total_sms_failed=total_failed,
+            total_rate_of_success=int(success_rate),
+            total_rate_of_failure=int(failure_rate)
+        )
+        
+        # Check if stats already exist for this pair
+        existing_stats = SmsStats.query.filter_by(pair_name=data["pair_name"]).first()
+        if existing_stats:
+            # Update existing stats
+            existing_stats.total_sms_sent = total_sent
+            existing_stats.total_sms_failed = total_failed
+            existing_stats.total_rate_of_success = int(success_rate)
+            existing_stats.total_rate_of_failure = int(failure_rate)
+        else:
+            # Add new stats
+            db_SQL.session.add(new_stats)
+        
+        # Commit changes
+        db_SQL.session.commit()
+        
+        # Return response
+        stats_dict = new_stats.to_json() if not existing_stats else existing_stats.to_json()
+        
+        return jsonify({
+            "message": "Stats created successfully",
+            "stats": stats_dict
+        }), 201
+        
+    except Exception as e:
+        db_SQL.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
 
