@@ -304,12 +304,11 @@ def get_sms_stats(current_user, pair_name):
         # Convert stats to dictionary
         stats_dict = {
             "pair_name": stats.pair_name,
-            "total_messages": stats.total_messages,
-            "successful_messages": stats.successful_messages,
-            "failed_messages": stats.failed_messages,
-            "success_rate": stats.successful_messages / stats.total_messages * 100 if stats.total_messages > 0 else 0,
-            "created_at": stats.created_at.isoformat() if stats.created_at else None,
-            "updated_at": stats.updated_at.isoformat() if stats.updated_at else None
+            "total_sms_sent": stats.total_sms_sent,
+            "total_sms_failed": stats.total_sms_failed,
+            "total_rate_of_success": stats.total_rate_of_success,
+            "total_rate_of_failure": stats.total_rate_of_failure
+            
         }
 
         return jsonify({
@@ -320,10 +319,50 @@ def get_sms_stats(current_user, pair_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
+@app.route("/stats/aggregate", methods=["GET"])
+@token_required
+def get_aggregate_stats(current_user):
+    try:
+        # Query all stats from the database
+        all_stats = SmsStats.query.all()
+        
+        if not all_stats:
+            return jsonify({
+                "message": "No stats found in the database",
+                "stats": None
+            }), 404
+        
+        # Calculate aggregates
+        total_sms_sent = sum(stat.total_sms_sent for stat in all_stats)
+        total_sms_failed = sum(stat.total_sms_failed for stat in all_stats)
+        
+        # Calculate overall success and failure rates
+        if total_sms_sent > 0:
+            overall_success_rate = ((total_sms_sent - total_sms_failed) / total_sms_sent * 100)
+            overall_failure_rate = (total_sms_failed / total_sms_sent * 100)
+        else:
+            overall_success_rate = 0
+            overall_failure_rate = 0
+        
+        # Create response dictionary
+        aggregate_stats = {
+            "total_pairs": len(all_stats),
+            "total_sms_sent": total_sms_sent,
+            "total_sms_failed": total_sms_failed,
+            "overall_success_rate": round(overall_success_rate, 2),
+            "overall_failure_rate": round(overall_failure_rate, 2)
+        }
+        
+        return jsonify({
+            "message": "Aggregate stats retrieved successfully",
+            "stats": aggregate_stats
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    
 #dummmy data from here
-
-
 
 @app.route("/stats/dummy", methods=["POST"])
 @token_required
