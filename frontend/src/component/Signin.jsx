@@ -1,11 +1,18 @@
 import { useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/Context'; // Adjust the import path as needed
+import { useNavigate } from 'react-router-dom';
 
 const Signin = () => {
+    const navigator = useNavigate()
     const [formData, setFormData] = useState({
         identifier: '',
         password: ''
     });
-    const [showPassword, setShowPassword] = useState(false); // New state for password visibility
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState(null);
+
+    const { login, setIsLoggedIn, token } = useAuth(); // Access the login function from AuthContext
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -15,9 +22,22 @@ const Signin = () => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Form submitted:', formData);
+        try {
+            const response = await axios.post('http://127.0.0.1:5000/signin', formData);
+
+            // Call the login function with user data and token from the response
+            const { user, token } = response.data; // Assuming the backend returns user data and token
+            login(user, token);
+            setIsLoggedIn(true)
+
+            // Redirect or navigate based on your requirements here
+            navigator('/dash')
+        } catch (error) {
+            console.error('Error during sign-in:', error);
+            setError(error.response?.data?.message || 'An error occurred during sign-in');
+        }
     };
 
     const togglePasswordVisibility = () => {
@@ -66,6 +86,8 @@ const Signin = () => {
                         </div>
                     </div>
 
+                    {error && <p className="text-sm text-red-600">{error}</p>}
+
                     <button
                         type="submit"
                         className="w-full py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -75,7 +97,7 @@ const Signin = () => {
                 </form>
 
                 <p className="text-sm text-center text-gray-600">
-                    Don't have an account? <a href="#" className="font-medium text-indigo-600 hover:underline">Contact the admin</a>
+                    Don&apos;t have an account? <a href="#" className="font-medium text-indigo-600 hover:underline">Contact the admin</a>
                 </p>
             </div>
         </div>
