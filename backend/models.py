@@ -4,8 +4,8 @@ from datetime import datetime
 from bson import Binary
 import io
 
-# MySQL Model 2
 
+# MySQL Model 2
 class SmsStats(db_SQL.Model):
     __tablename__ = "sms_stats"
 
@@ -16,7 +16,11 @@ class SmsStats(db_SQL.Model):
     total_rate_of_success = db_SQL.Column(db_SQL.Integer, nullable=False)
     total_rate_of_failure = db_SQL.Column(db_SQL.Integer, nullable=False)
     created_at = db_SQL.Column(db_SQL.DateTime, default=datetime.utcnow)
-    updated_at = db_SQL.Column(db_SQL.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db_SQL.Column(
+        db_SQL.DateTime, 
+        default=datetime.utcnow, 
+        onupdate=datetime.utcnow
+    )
 
     def to_json(self):
         return {
@@ -29,6 +33,7 @@ class SmsStats(db_SQL.Model):
             # "createdAt": self.created_at.isoformat() if self.created_at else None,
             # "updatedAt": self.updated_at.isoformat() if self.updated_at else None
         }
+
 
 # MongoDB Model 1
 class MongoPair:
@@ -52,7 +57,8 @@ class MongoPair:
         }
 
     @classmethod
-    def insert_one(cls, pair_name, active_status, priority, session_details, proxy, number_list_file=None):
+    def insert_one(cls, pair_name, active_status, priority, session_details, 
+                  proxy, number_list_file=None):
         data = {
             "pair_name": pair_name,
             "active_status": active_status,
@@ -84,6 +90,7 @@ class MongoPair:
             }
         return None
 
+
 # MongoDB Model 2 for User
 class User:
     collection = db_mongo["users"] 
@@ -104,6 +111,7 @@ class User:
         # Check if username or email already exists
         if cls.collection.find_one({"username": username}):
             raise ValueError("Username already exists")
+            
         if cls.collection.find_one({"email": email}):
             raise ValueError("Email already exists")
 
@@ -112,6 +120,7 @@ class User:
             "password": password,
             "email": email
         }
+        
         try:
             result = cls.collection.insert_one(data)
             return result.inserted_id

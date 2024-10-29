@@ -1,5 +1,5 @@
 from config import app, db_SQL
-from models import SmsStats  # Import your models
+from models import SmsStats  
 
 def init_db():
     with app.app_context():
