@@ -13,10 +13,10 @@ const MainLayout = () => {
                 <DisplayAndaddPairs />
             </div>
             <div className="col-span-6">
-                <div className="h-1/3">
+                <div className="h-2/4">
                     <DisplayOverAllstats />
                 </div>
-                <div className="h-2/3">
+                <div className="h-2/4">
                     <DisplaySelectedStats />
                 </div>
             </div>

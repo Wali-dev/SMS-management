@@ -40,7 +40,7 @@ const TableRow = ({ pairName, activeStatus, pair_id, handleAction, index, priori
     return (
         <Draggable draggableId={pair_id.toString()} index={index}>
             {(provided, snapshot) => (
-                <div onClick={() => DisplaySelectedStats(pair_id)}
+                <div onClick={() => DisplaySelectedStats(pairName)}
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     className={`grid grid-cols-12 items-center border-b border-gray-200 py-2 hover:cursor-pointer hover:bg-slate-100 ${snapshot.isDragging ? 'bg-gray-50' : 'bg-white'
@@ -84,7 +84,7 @@ const Table = (trigger) => {
     const [isLoading, setIsLoading] = useState(true);
     const [updateError, setUpdateError] = useState('');
     const [dragCounter, setDragCounter] = useState(0); // New state for forcing re-renders
-    const bearerToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjcxZTQ4MTYzMmRkNjUwOGZiMGViOTkxIiwiZXhwIjoxNzMwMjY3MjI5fQ.LbdTKsmzjfp3kDNxUkbYL6_Mw-kbMPpmdVMJJ1NEboM';
+    const bearerToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjcxZTQ4MTYzMmRkNjUwOGZiMGViOTkxIiwiZXhwIjoxNzMwMzQzMjExfQ.ZErCL4neknZ-f4YcVwnrKU5VlFX_vVEHdVlVzuNASj8';
 
     const loadPriorities = () => {
         const stored = localStorage.getItem('pairPriorities');
