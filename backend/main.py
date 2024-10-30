@@ -270,6 +270,19 @@ def program_operation(current_user, operation):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/program/pairs", methods=["GET"])
+@token_required
+def get_all_pairs(current_user):
+    try:
+        all_pairs = list(MongoPair.collection.find())
+        pairs_json = []
+        for pair in all_pairs:
+            pair_dict = MongoPair.to_json(pair)
+            pair_dict["pair_id"] = str(pair["_id"])
+            pairs_json.append(pair_dict)
+        return jsonify(pairs_json), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Stats Routes
 @app.route("/stats/<pair_name>", methods=["GET"])

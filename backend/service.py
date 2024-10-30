@@ -1,4 +1,5 @@
 # service.py
+
 from program import SendSMS, SubmitSMS
 from models import SmsStats, MongoPair
 from config import db_SQL, db_mongo
@@ -7,24 +8,24 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 from threading import Thread
-import threading
 
 class SMSService:
-    # Track running pairs and their threads
     running_pairs = {}
-    # Track send times for rate limiting
     send_times = defaultdict(list)
     
     def __init__(self, pair_name):
         self.pair_name = pair_name
         self.should_stop = False
-        # Get pair details from MongoDB
-        pair_data = MongoPair.collection.find_one({"pair_name": pair_name})
-        if not pair_data:
-            raise ValueError("Pair not found")
+        # Fetch pair data with error handling
+        try:
+            pair_data = MongoPair.collection.find_one({"pair_name": pair_name})
+            if not pair_data:
+                raise ValueError(f"Pair '{pair_name}' not found in MongoDB.")
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve pair data for {pair_name}: {e}")
         
         self.proxy = pair_data.get("proxy")
-        self.session_details = pair_data.get("session_details")
+        self.session_details = pair_data.get("session_details", {})
         self.numbers_file = self.session_details.get("numbers_file")
     
     @classmethod
@@ -32,13 +33,19 @@ class SMSService:
         """Start processing for a pair"""
         if pair_name in cls.running_pairs:
             return {"success": False, "message": "Pair is already running"}
-            
-        # Update pair status in MongoDB
-        MongoPair.collection.update_one(
-            {"pair_name": pair_name},
-            {"$set": {"active_status": True}}
-        )
         
+        # Update pair status with error handling
+        try:
+            update_result = MongoPair.collection.update_one(
+                {"pair_name": pair_name},
+                {"$set": {"active_status": True}}
+            )
+            if update_result.matched_count == 0:
+                return {"success": False, "message": f"No document found with pair_name: {pair_name}"}
+        except Exception as e:
+            return {"success": False, "message": f"Error updating MongoPair status: {e}"}
+        
+        # Start the processing thread
         service = cls(pair_name)
         thread = Thread(target=service.process_numbers)
         thread.daemon = True
@@ -56,14 +63,20 @@ class SMSService:
         service = cls.running_pairs[pair_name]
         service.should_stop = True
         
-        # Update pair status in MongoDB
-        MongoPair.collection.update_one(
-            {"pair_name": pair_name},
-            {"$set": {"active_status": False}}
-        )
+        # Update pair status with error handling
+        try:
+            update_result = MongoPair.collection.update_one(
+                {"pair_name": pair_name},
+                {"$set": {"active_status": False}}
+            )
+            if update_result.matched_count == 0:
+                return {"success": False, "message": f"No document found with pair_name: {pair_name}"}
+        except Exception as e:
+            return {"success": False, "message": f"Error updating MongoPair status: {e}"}
         
         del cls.running_pairs[pair_name]
         return {"success": True, "message": f"Stopped processing pair {pair_name}"}
+
     
     @classmethod
     def restart_pair(cls, pair_name):

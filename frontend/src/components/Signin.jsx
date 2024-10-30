@@ -33,7 +33,7 @@ const Signin = () => {
             setIsLoggedIn(true)
 
             // Redirect or navigate based on your requirements here
-            navigator('/dash')
+            navigator('/dashboard')
         } catch (error) {
             console.error('Error during sign-in:', error);
             setError(error.response?.data?.message || 'An error occurred during sign-in');

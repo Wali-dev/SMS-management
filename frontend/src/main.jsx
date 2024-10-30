@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+
 import { createRoot } from 'react-dom/client'
 import './App.css'
 import './index.css'
@@ -6,8 +6,9 @@ import {
   createBrowserRouter,
   RouterProvider,
 } from "react-router-dom";
-import Signin from './component/Signin';
+import Signin from './components/Signin';
 import { AuthProvider } from './context/Context';
+import MainLayout from './layout/MainLayout';
 
 
 const router = createBrowserRouter([
@@ -21,8 +22,8 @@ const router = createBrowserRouter([
     element: <Signin />
   },
   {
-    path: '/dash',
-    element: <div>this is the dash</div>,
+    path: '/dashboard',
+    element: <MainLayout />,
     _children: [
       {
         path: 'main',
@@ -44,3 +45,4 @@ createRoot(document.getElementById('root')).render(
     <RouterProvider router={router} />
   </AuthProvider>
 )
+
