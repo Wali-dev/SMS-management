@@ -1,22 +1,113 @@
 # API Documentation
-### BACKEND
+### BACKEND & FRONTEND
+
 ## Table of Contents
+- [Setup](#setup)
+  - [Backend Setup](#backend-setup)
+    - [Prerequisites](#backend-prerequisites)
+    - [Backend Installation](#backend-installation)
+    - [Backend Configuration](#backend-configuration)
+    - [Running the Backend](#running-the-backend)
+  - [Frontend Setup](#frontend-setup)
+    - [Prerequisites](#frontend-prerequisites)
+    - [Frontend Installation](#frontend-installation)
+    - [Running the Frontend](#running-the-frontend)
 - [Introduction](#introduction)
 - [Authentication](#authentication)
 - [Program Management](#program-management)
-  - [Create Program](#create-program)
-  - [Update Program](#update-program)
-  - [Delete Program](#delete-program)
-  - [Start/Stop/Restart Program](#startstopRestart-program)
-  - [Get All Programs](#get-all-programs)
 - [Statistics](#statistics)
-  - [Get SMS Stats for a Program](#get-sms-stats-for-a-program)
-  - [Get Aggregate Stats](#get-aggregate-stats)
-  - [Create Dummy Stats](#create-dummy-stats)
 - [User Management](#user-management)
-  - [Get User](#get-user)
-  - [Create User](#create-user)
-  - [Sign In](#sign-in)
+
+## Setup
+
+### Backend Setup
+
+#### Backend Prerequisites
+Before setting up the project, ensure you have the following installed:
+- Python 3.8 or higher
+- MySQL
+- MongoDB
+- Git
+
+#### Backend Installation
+
+1. Clone the repository
+```bash
+git clone https://github.com/Wali-dev/SMS-management.git
+cd SMS-management
+cd backend
+```
+
+2. Create and activate a virtual environment
+```bash
+# On Windows
+python -m venv venv
+venv\Scripts\activate
+
+# On macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+#### Backend Configuration
+
+1. Create a `.env` file in the root directory with the following variables:
+```env
+SQL_DATABASE_URL=mysql://username:password@localhost/database_name
+MONGODB_DATABASE_URL=mongodb://localhost:27017/database_name
+JWT_SECRET_KEY=your_secret_key
+```
+
+2. Set up the databases
+- Create a MySQL database with the name specified in your `.env` file
+- Ensure MongoDB is running and accessible at the URL specified in your `.env` file
+
+#### Running the Backend
+
+1. Initialize the database tables
+```bash
+pyhton init_db.py
+```
+
+2. Start the Flask application
+```bash
+python main.py
+```
+
+The backend will start running on `http://localhost:5000`
+
+### Frontend Setup
+
+#### Frontend Prerequisites
+- Node.js 14.x or higher
+- npm 6.x or higher
+
+#### Frontend Installation
+
+1. Navigate to the frontend directory from the project root
+```bash
+cd frontend
+```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+#### Running the Frontend
+
+1. Start the development server
+```bash
+npm start
+npm run dev
+```
+
+The frontend will start running on `http://localhost:3000`
 
 ## Introduction
 This API allows you to manage SMS programs, track their performance metrics, and manage user accounts. The API is built using Flask, Flask-SQLAlchemy, and Flask-MongoEngine.
