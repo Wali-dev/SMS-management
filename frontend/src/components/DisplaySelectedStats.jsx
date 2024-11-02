@@ -1,4 +1,5 @@
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button } from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./ui/card";
+import { Button } from "./ui/button";
 import { CheckCircle, XCircle, MessageCircle, Trash2, Edit } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import axios from "axios";
